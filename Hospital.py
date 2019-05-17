@@ -10,18 +10,19 @@ driver = GraphDatabase.driver("bolt://localhost:7687", auth=("neo4j", "password"
 def addPatient(tx, nombre, telefono):
     tx.run("CREATE (p:Paciente {nombre: $nombre, telefono: $telefono})",
     nombre=nombre, telefono=telefono)
+
 def addDoctor(tx, nombre, colegiado, especialidad, telefono):
     tx.run("CREATE (d:Doctor {nombre: $nombre, colegiado: $colegiado, especialidad: $especialidad,telefono: $telefono})",
     nombre=nombre, colegiado=colegiado, especialidad=especialidad,telefono=telefono)
 def verifyPerson(type, name):
     if(type == "DOCTOR"):
         results=[]
-        cql = "MATCH (x:Doctor {nombre: '" + name + "'}) RETURN x"
+        matchQuery = "MATCH (x:Doctor {nombre: '" + name + "'}) RETURN x"
             # Execute the CQL query
         with driver.session() as graphDB_Session:
-            nodes = graphDB_Session.run(cql)
+            nodes = graphDB_Session.run(matchQuery)
             for node in nodes:
-                results.append(node)
+                results.append(node) #Adds all the matching nodes, meaning that if len(results) > 0, there's at least one match
             return results
     elif(type == "PACIENTE"):
         results=[]
@@ -33,13 +34,13 @@ def verifyPerson(type, name):
                 results.append(node)
             return results
 
-#def makeAVisit(tx, paciente, telefono, doctor, fechaVisita, medicina, dosis, fechaInicial, fechaFinal):
- #   tx.run("MATCH (d:Doctor) WHERE d.nombre = $doctor "
-  #         "MERGE (p:Paciente {nombre:$paciente, telefono:$telefono})"
-   #        "MERGE (m:Medicina {nombre: $medicina, fechaInicial:$fechaInicial, fechaFinal: $fechaFinal, dosis: $dosis})"
-    #       "MERGE (p) -[:VISITS {fechaVisita:$fechaVisita}]-> (d)"
-     #      "MERGE (p) -[:TAKES]-> (m) <-[:PRESCRIBE]- (d)",
-      #      nombre=paciente, telefono=telefono, medicina=medicina, fechaInicial=fechaInicial, fechaFinal=fechaFinal, dosis=dosis, doctor=doctor, fechaVisita=fechaVisita)
+def makeAVisit(tx, paciente, telefono, doctor, fechaVisita, medicina, dosis, fechaInicial, fechaFinal):
+    tx.run("MATCH (d:Doctor) WHERE d.nombre = $doctor "
+           "MERGE (p:Paciente {nombre:$paciente, telefono:$telefono})"
+           "MERGE (m:Medicina {nombre: $medicina, fechaInicial:$fechaInicial, fechaFinal: $fechaFinal, dosis: $dosis})"
+           "MERGE (p) -[:VISITS {fechaVisita:$fechaVisita}]-> (d)"
+           "MERGE (p) -[:TAKES]-> (m) <-[:PRESCRIBE]- (d)",
+            paciente=paciente, telefono=telefono, medicina=medicina, fechaInicial=fechaInicial, fechaFinal=fechaFinal, dosis=dosis, doctor=doctor, fechaVisita=fechaVisita)
 
 with driver.session() as session:
     validOptions = [1,2,3,4,5,6,7]
@@ -115,14 +116,14 @@ with driver.session() as session:
                     while(dosis == ""):
                         dosis = input("Escriba la dosis recomendada: ")
                     fechaInicial = ""
-                    while(fechaInicial):
+                    while(fechaInicial == ""):
                         fechaInicial = input("Desde la fecha: ")
                     fechaFinal = ""
-                    while(fechaFinal):
+                    while(fechaFinal == ""):
                         fechaFinal = input("Hasta la fecha: ")
                     
                     if((len(verifyPerson("DOCTOR",doctor)) >= 1)):
-                      #  session.write_transaction(makeAVisit, paciente, telefono, doctor, fechaVisita, medicina, dosis, fechaInicial, fechaFinal)
+                        session.write_transaction(makeAVisit, paciente, telefono, doctor, fechaVisita, medicina, dosis, fechaInicial, fechaFinal)
                         print("Agregada la cita")
                     else:
                         print("El doctor no existe en la DB")
