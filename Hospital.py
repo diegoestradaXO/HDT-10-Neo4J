@@ -33,7 +33,6 @@ def verifyPerson(type, name):
             nodes = graphDB_Session.run(cql)
             for node in nodes:
                 results.append(node)
-            print(results)
             return results
 
 def makeAVisit(tx, paciente, telefono, doctor, fechaVisita, medicina, dosis, fechaInicial, fechaFinal):
