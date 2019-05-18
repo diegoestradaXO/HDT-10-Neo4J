@@ -14,6 +14,7 @@ def addPatient(tx, nombre, telefono):
 def addDoctor(tx, nombre, colegiado, especialidad, telefono):
     tx.run("CREATE (d:Doctor {nombre: $nombre, colegiado: $colegiado, especialidad: $especialidad,telefono: $telefono})",
     nombre=nombre, colegiado=colegiado, especialidad=especialidad,telefono=telefono)
+
 def verifyPerson(type, name):
     if(type == "DOCTOR"):
         results=[]
@@ -32,6 +33,7 @@ def verifyPerson(type, name):
             nodes = graphDB_Session.run(cql)
             for node in nodes:
                 results.append(node)
+            print(results)
             return results
 
 def makeAVisit(tx, paciente, telefono, doctor, fechaVisita, medicina, dosis, fechaInicial, fechaFinal):
@@ -41,6 +43,34 @@ def makeAVisit(tx, paciente, telefono, doctor, fechaVisita, medicina, dosis, fec
            "MERGE (p) -[:VISITS {fechaVisita:$fechaVisita}]-> (d)"
            "MERGE (p) -[:TAKES]-> (m) <-[:PRESCRIBE]- (d)",
             paciente=paciente, telefono=telefono, medicina=medicina, fechaInicial=fechaInicial, fechaFinal=fechaFinal, dosis=dosis, doctor=doctor, fechaVisita=fechaVisita)
+
+def createRelation(tx, persona1, persona2):
+    tx.run("MATCH (p:Paciente) WHERE p.nombre = $persona1 "
+           "MATCH (q:Paciente) WHERE q.nombre = $persona2 "
+           "MERGE (p) -[:KNOWS]- (q)",
+           persona1=persona1, persona2=persona2)
+
+def searchDoctors(tx,especialidad):
+    results=[]
+    cql = "MATCH (x:Doctor {especialidad: '" + especialidad + "'}) RETURN x"
+        # Execute the CQL query
+    with driver.session() as graphDB_Session:
+        nodes = graphDB_Session.run(cql)
+        for node in nodes:
+            results.append(node)
+        return results
+
+def recommendDoctor(tx, doctor, paciente, especialidad):
+    doctors=[]
+    cql = "MATCH (x:Doctor {especialidad: '" + especialidad + "'}) RETURN x"
+        # Execute the CQL query
+    with driver.session() as graphDB_Session:
+        nodes = graphDB_Session.run(cql)
+        for node in nodes:
+            doctors.append(node)
+        results = []
+        #for doctor in doctors:
+
 
 with driver.session() as session:
     validOptions = [1,2,3,4,5,6,7]
@@ -54,8 +84,9 @@ with driver.session() as session:
         3. Ingresar visita al Doctor
         4. Consultar doctores con una especialidad
         5. Ingresar que una persona conoce a otra persona   
-        6. Recomendaciones
-        7. Salir 
+        6. Recomendar doctor
+        7. Referir paciente a otro doctor
+        8. Salir 
     """)
             option = input(">> ")
             if(int(option) in validOptions):
@@ -135,19 +166,30 @@ with driver.session() as session:
                     especialidad = ""
                     while(especialidad == ""):
                         especialidad = input("Especialidad que busca: ")
-
-                    #Recorrer la GDB e imprimir todos los doctores con esa especialidad especifica, mostrando: nombre y numero de telefon
+                        doctores = session.write_transaction(searchDoctors,especialidad)
+                        for doctor in doctores:
+                            print(doctor.values())
+                    #Recorrer la GDB e imprimir todos los doctores con esa especialidad especifica, mostrando: nombre y numero de telefono
 
 
                 elif(int(option) == 5):     #Ingresar relaciones
                     persona1 = ""
                     while(persona1 == ""):
                         persona1 = input("Ingrese el nombre de la persona: ")
+
+                    if((len(verifyPerson("PACIENTE",persona1)) >= 1)):
                     #Verificar si la persona1 existe en la GDB, si existe, preguntar por la segunda persona
-                    persona2 = ""
-                    while(persona2 == ""):
-                        persona2 = input("La persona anterior conoce a: ")
-                    #Verificar si al persona2 existe en la GDB, si existe, crear la relacion CONOCE
+                        persona2 = ""
+                        while(persona2 == ""):
+                            persona2 = input("La persona anterior conoce a: ")
+                        if((len(verifyPerson("PACIENTE",persona2)) >= 1)):
+                            session.write_transaction(createRelation, persona1, persona2)
+                            print("Relacion creada")
+                        else:
+                            print("La persona que indica no existe")
+                        #Verificar si al persona2 existe en la GDB, si existe, crear la relacion CONOCE
+                    else:
+                        print("La persona que indica no existe")
 
                 elif(int(option) == 6):     #Recomendaciones
                     print("h")
